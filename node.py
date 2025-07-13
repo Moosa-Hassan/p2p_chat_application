@@ -1,0 +1,106 @@
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes
+import socket
+import threading
+
+
+class Node:
+    
+    def __init__(self,name:str,pos:int,ip,port):
+        """
+        this is supposed to have a private public keys, the name of host, position 
+        in the list and holds a directory of name to list of ip address and public key
+        """
+        self.__private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        )
+        self.public_key = self.__private_key.public_key()
+        self.name = name
+        self.position = pos
+        self.ip = ip 
+        self.port = port
+        # directory = [name] -> [ipaddress,port,pubkey]
+        self.directory = {}
+        self.running = True
+        
+    def connect(self, system:dict):
+        """
+        Used to connect a node to the p2p network
+        """
+        system[self.name] = self.public_key
+        
+    def update_directory(self,name:str,flag,pub_key=None,ip="0.0.0.0",port=3000):
+        """
+        Used to update directory.
+        J means join
+        L means leave
+        """
+        if flag=="J":
+            self.directory[name]=[ip,port,pub_key]
+        elif flag=="L":
+            self.directory.pop(name,None)
+        
+    def listener(self, ip:str,port:int):
+        def run_server():
+            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server.bind((ip, port))
+            server.listen()
+            print(f"[{self.name}] Listening on {ip}:{port}")
+
+            while self.running:
+                conn, addr = server.accept()
+                data = conn.recv(4096)
+                if data:
+                    message = self.recieve_message(data)
+                    if message == "Error Code 9329":# decryption failed
+                        continue
+                    if message == "Error Code 2746":# node left
+                        conn.close()
+                        break
+                    print(f"[{self.name}] Message from {addr}: {message}")
+                conn.close()
+
+        thread = threading.Thread(target=run_server, daemon=True)
+        thread.start()
+
+        
+    def recieve_message(self,msg):
+        """
+        Decodes the message recieved
+        """
+        try:
+            return self.__private_key.decrypt(msg,padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None)).decode()
+        except:
+            return "Error Code 9329"
+    
+    def send_message(self,name:str,msg:str):
+        """
+        Takes message from user and creates a socket with target 
+        """
+        if name not in self.directory.keys():
+            print("User not in directory")
+            return
+        cipher_text = self.directory[name][2].encrypt(msg.encode(),padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None))
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((self.directory[name][0],self.directory[name][1]))
+            sock.sendall(cipher_text)
+        
+        
+    def leave(self):
+        """
+        Leaves the system
+        """
+        self.running = False  # Stop the listener loop
+        self.directory.pop(self.name,None)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect((self.ip, self.port))
+                sock.sendall(b'Error Code 2746')# to close circuit
+        except:
+            pass 
+    
+
+
+        
+    
