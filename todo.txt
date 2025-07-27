@@ -1,0 +1,3 @@
+Fix the security issue of all nodes being able to read all other nodes messages by /inbox/<username>
+Get seperate boxes for each chat
+Make the layout responsive

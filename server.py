@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify, render_template
 from node import Node
 from system import p2p_System
+from flask import session
+import secrets
 
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)
 system = p2p_System()
 
 # Store node instances by name
@@ -18,6 +21,7 @@ def join():
     name = data['name']
     ip = data['ip']
     port = int(data['port'])
+    session['username'] = name
 
     if name in active_nodes:
         return jsonify({'status': 'error', 'message': 'Node already exists'}), 400
@@ -62,6 +66,8 @@ def leave():
 
 @app.route('/inbox/<name>', methods=['GET'])
 def inbox(name):
+    if session.get('username') != name:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
     for node in system.nodes_list:
         if node and node.name == name:
             for i in range(len(system.nodes_list)):

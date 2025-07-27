@@ -167,7 +167,7 @@
     }
 
     setInterval(() => {
-        fetch(`/inbox/${currentUser}`)
+        fetch(`/inbox`,{ credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 let chatBox = document.getElementById('chatBox');
