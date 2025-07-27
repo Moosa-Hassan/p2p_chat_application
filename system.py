@@ -17,8 +17,8 @@ class p2p_System:
         return len(self.nodes_list)
         
         
-    def add_node(self,name:str,ip,port):
-        node = Node(name,self.get_pos(),ip,port)
+    def add_node(self,name:str,ip,port,node:Node=None):
+        # node = Node(name,self.get_pos(),ip,port)
         self.nodes_list.append(node)
         self.broadcast(node.position)
         

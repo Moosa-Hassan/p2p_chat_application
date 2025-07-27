@@ -24,7 +24,7 @@ def join():
 
     node = Node(name, system.get_pos(), ip, port)
     node.listener(ip, port)
-    system.add_node(name, ip, port)
+    system.add_node(name, ip, port,node)
     active_nodes[name] = node
 
     return jsonify({'status': 'success', 'message': f'{name} joined on {ip}:{port}'}), 200
@@ -59,6 +59,22 @@ def leave():
     del active_nodes[name]
 
     return jsonify({'status': 'success', 'message': f'{name} has left'}), 200
+
+@app.route('/inbox/<name>', methods=['GET'])
+def inbox(name):
+    for node in system.nodes_list:
+        if node and node.name == name:
+            for i in range(len(system.nodes_list)):
+                if system.nodes_list[i] and system.nodes_list[i].name == name:
+                    pos = i
+                    break
+            node = system.nodes_list[pos]
+            return jsonify({'messages': node.inbox}), 200
+    return jsonify({'status': 'error', 'message': 'Node not found'}), 400
+
+@app.route('/nodes', methods=['GET'])
+def nodes():
+    return jsonify({'nodes': list(active_nodes.keys())})
 
 if __name__ == '__main__':
     app.run(debug=True)

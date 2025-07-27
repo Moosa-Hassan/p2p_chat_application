@@ -89,7 +89,7 @@
         <input id="nameInput" type="text" placeholder="Enter your name">
         <input id="ipInput" type="text" placeholder="Enter IP (e.g., 127.0.0.1)">
         <input id="portInput" type="number" placeholder="Port (e.g., 8001)">
-        <button onclick="join()">Join</button>
+        <button onclick=join()>Join</button>
       </div>
 
       <div class="chat-area" id="chatBox">
@@ -98,7 +98,7 @@
 
       <div class="input-bar">
         <input id="msgInput" type="text" placeholder="Type your message">
-        <button onclick="send()">Send</button>
+        <button onclick=send()>Send</button>
       </div>
     </div>
   </div>
@@ -139,6 +139,8 @@
         chatBox.innerHTML += `<div><b>You:</b> ${msg}</div>`;
         document.getElementById("msgInput").value = "";
       });
+
+      
     }
 
     function selectUser(name) {
@@ -149,6 +151,7 @@
     function fetchNodeList() {
       // You'd create a Flask endpoint like `/nodes` returning all known node names
       fetch('/nodes').then(res => res.json()).then(data => {
+        
         const nodeList = document.getElementById("nodeList");
         nodeList.innerHTML = "";
         data.nodes.forEach(name => {
@@ -163,7 +166,21 @@
       });
     }
 
+    setInterval(() => {
+        fetch(`/inbox/${currentUser}`)
+            .then(res => res.json())
+            .then(data => {
+                let chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = '';
+                data.messages.forEach(([addr, msg]) => {
+                    chatBox.innerHTML += `<div><b>${addr}:</b> ${msg}</div>`;
+                });
+            });
+    }, 2000);
+
+
     // You can also periodically call fetchNodeList() if needed
+    setInterval(fetchNodeList, 10000);
   </script>
 </body>
 </html>

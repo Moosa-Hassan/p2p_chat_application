@@ -23,6 +23,7 @@ class Node:
         # directory = [name] -> [ipaddress,port,pubkey]
         self.directory = {}
         self.running = True
+        self.inbox = []  # list of (sender name, message)
         
     def connect(self, system:dict):
         """
@@ -40,6 +41,16 @@ class Node:
             self.directory[name]=[ip,port,pub_key]
         elif flag=="L":
             self.directory.pop(name,None)
+            
+    def get_name(self, addr):
+        """
+        Returns the name of node corresponding to the address
+        """
+        for name, details in self.directory.items():
+            print(f"Checking {name} against {addr[0]} with details {details[0]}")
+            if str(addr[0]) == str(details[0]):
+                return name
+        return None
         
     def listener(self, ip:str,port:int):
         def run_server():
@@ -53,12 +64,16 @@ class Node:
                 data = conn.recv(4096)
                 if data:
                     message = self.recieve_message(data)
+                    print(f"[{self.name}] Received message from {addr}: {message}")
+                    message_split = message.split("|")
+                    if message not in ["Error Code 9329", "Error Code 2746"]:
+                        self.inbox.append((message_split[0], message_split[1])) 
                     if message == "Error Code 9329":# decryption failed
                         continue
                     if message == "Error Code 2746":# node left
                         conn.close()
                         break
-                    print(f"[{self.name}] Message from {addr}: {message}")
+                    print(f"[{self.name}] Message from {message_split[0]}: {message_split[1]}")
                 conn.close()
 
         thread = threading.Thread(target=run_server, daemon=True)
@@ -74,13 +89,15 @@ class Node:
         except:
             return "Error Code 9329"
     
-    def send_message(self,name:str,msg:str):
+    def send_message(self,name:str,msge:str):
         """
         Takes message from user and creates a socket with target 
         """
         if name not in self.directory.keys():
             print("User not in directory")
             return
+        msg = f"{self.name}|{msge}"
+        self.inbox.append((self.name, msge))
         cipher_text = self.directory[name][2].encrypt(msg.encode(),padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None))
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((self.directory[name][0],self.directory[name][1]))
