@@ -2,67 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>P2P Chat App</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-    }
-
-    .container {
       display: flex;
       height: 100vh;
     }
 
+    /* Sidebar (left pane) */
     .left-pane {
       width: 30%;
       background-color: #f0f0f0;
       border-right: 1px solid #ccc;
       padding: 10px;
-      box-sizing: border-box;
-    }
-
-    .right-pane {
-      width: 70%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .connect-bar {
-      display: flex;
-      padding: 10px;
-      background-color: #e8e8e8;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .connect-bar input {
-      padding: 5px;
-      flex: 1;
-    }
-
-    .chat-area {
-      flex: 1;
-      padding: 10px;
       overflow-y: auto;
-      background-color: #fafafa;
-      border-top: 1px solid #ccc;
+      transition: transform 0.3s ease;
     }
 
-    .input-bar {
-      display: flex;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-    }
-
-    .input-bar input {
-      flex: 1;
-      padding: 8px;
-    }
-
-    .input-bar button {
-      margin-left: 10px;
-      padding: 8px 12px;
+    .left-pane h3 {
+      margin-top: 0;
     }
 
     .node {
@@ -73,114 +38,256 @@
       cursor: pointer;
       border: 1px solid #ccc;
     }
+
+    /* Right pane (chat area) */
+    .right-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .connect-bar {
+      display: flex;
+      padding: 10px;
+      background-color: #e8e8e8;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .connect-bar input {
+      padding: 5px;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .chat-area {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background-color: #fafafa;
+      border-top: 1px solid #ccc;
+
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-message {
+      background-color: #fff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+
+      width: fit-content;
+      max-width: 70%;
+
+      word-break: break-word;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      background-color: #d0e6ff;
+    }
+
+    .chat-message.other {
+      align-self: flex-start;
+      background-color: #ffffff;
+    }
+
+    .input-bar {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .input-bar input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .input-bar button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .input-bar button:hover {
+      background: #0056b3;
+    }
+
+    /* Toggle menu button (mobile only) */
+    .menu-label {
+      display: none;
+      background-color: #007bff;
+      color: white;
+      padding: 6px 12px;
+      font-size: 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Responsive design */
+    @media (max-width: 650px) {
+      body {
+        flex-direction: column;
+      }
+
+      .left-pane {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 70%;
+        max-width: 300px;
+        z-index: 999;
+        transform: translateX(-100%);
+        border-right: 1px solid #ccc;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        background-color: #fff;
+      }
+
+      #menu-toggle:checked ~ .left-pane {
+        transform: translateX(0);
+      }
+
+      .right-pane {
+        flex: none;
+        height: 100%;
+      }
+
+      .input-bar {
+        flex-wrap: wrap;
+      }
+
+      .menu-label {
+        display: inline-block;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="left-pane">
-      <h3>Connected Nodes</h3>
-      <div id="nodeList">
-        <!-- Filled via JS -->
-      </div>
+  <!-- Sidebar toggle (for mobile) -->
+  <input type="checkbox" id="menu-toggle" hidden>
+  <div class="left-pane">
+    <h3>Connected Nodes</h3>
+    <div id="nodeList"></div>
+  </div>
+
+  <!-- Main chat interface -->
+  <div class="right-pane">
+    <div class="connect-bar">
+      <input id="nameInput" type="text" placeholder="Enter your name">
+      <input id="ipInput" type="text" placeholder="Enter IP (e.g., 127.0.0.1)">
+      <input id="portInput" type="number" placeholder="Port (e.g., 8001)">
+      <button onclick="join()">Join</button>
+
     </div>
 
-    <div class="right-pane">
-      <div class="connect-bar">
-        <input id="nameInput" type="text" placeholder="Enter your name">
-        <input id="ipInput" type="text" placeholder="Enter IP (e.g., 127.0.0.1)">
-        <input id="portInput" type="number" placeholder="Port (e.g., 8001)">
-        <button onclick=join()>Join</button>
-      </div>
+    <div class="chat-area" id="chatBox"></div>
 
-      <div class="chat-area" id="chatBox">
-        <!-- Messages go here -->
-      </div>
-
-      <div class="input-bar">
-        <input id="msgInput" type="text" placeholder="Type your message">
-        <button onclick=send()>Send</button>
-      </div>
+    <div class="input-bar">
+      <input id="msgInput" type="text" placeholder="Type your message">
+      <button onclick="send()">Send</button>
+      <label class="menu-label" for="menu-toggle">☰</label>
     </div>
   </div>
 
-  <script>
-    let currentUser = "";
-    let selectedTarget = "";
+    <script>
+      let currentUser = "";
+      let selectedTarget = "";
 
-    function join() {
-      const name = document.getElementById("nameInput").value;
-      const ip = document.getElementById("ipInput").value;
-      const port = document.getElementById("portInput").value;
-      if (!name || !ip || !port) return alert("Fill all fields");
+      function join() {
+        const name = document.getElementById("nameInput").value;
+        const ip = document.getElementById("ipInput").value;
+        const port = document.getElementById("portInput").value;
+        if (!name || !ip || !port) return alert("Fill all fields");
 
-      currentUser = name;
+        currentUser = name;
 
-      fetch('/join', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name, ip, port })
-      }).then(res => res.json()).then(data => {
-        alert(data.message);
-        fetchNodeList(); // optional future endpoint
-      });
-    }
-
-    function send() {
-      const msg = document.getElementById("msgInput").value;
-      if (!selectedTarget) return alert("Select someone to message");
-      if (!msg) return;
-
-      fetch('/send', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ sender: currentUser, receiver: selectedTarget, message: msg })
-      }).then(res => res.json()).then(data => {
-        const chatBox = document.getElementById("chatBox");
-        chatBox.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-        document.getElementById("msgInput").value = "";
-      });
-
-      
-    }
-
-    function selectUser(name) {
-      selectedTarget = name;
-      alert("Chatting with " + name);
-    }
-
-    function fetchNodeList() {
-      // You'd create a Flask endpoint like `/nodes` returning all known node names
-      fetch('/nodes').then(res => res.json()).then(data => {
-        
-        const nodeList = document.getElementById("nodeList");
-        nodeList.innerHTML = "";
-        data.nodes.forEach(name => {
-          if (name !== currentUser) {
-            const el = document.createElement("div");
-            el.className = "node";
-            el.innerText = name;
-            el.onclick = () => selectUser(name);
-            nodeList.appendChild(el);
-          }
+        fetch('/join', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name, ip, port })
+        }).then(res => res.json()).then(data => {
+          alert(data.message);
+          fetchNodeList(); // optional future endpoint
         });
-      });
-    }
+      }
 
-    setInterval(() => {
-        fetch(`/inbox`,{ credentials: 'include' })
-            .then(res => res.json())
-            .then(data => {
-                let chatBox = document.getElementById('chatBox');
-                chatBox.innerHTML = '';
-                data.messages.forEach(([addr, msg]) => {
-                    chatBox.innerHTML += `<div><b>${addr}:</b> ${msg}</div>`;
-                });
+      function send() {
+        const msg = document.getElementById("msgInput").value;
+        if (!selectedTarget) return alert("Select someone to message");
+        if (!msg) return;
+
+        fetch('/send', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ sender: currentUser, receiver: selectedTarget, message: msg })
+        }).then(res => res.json()).then(data => {
+          const chatBox = document.getElementById("chatBox");
+          chatBox.innerHTML += `<div><b>You:</b> ${msg}</div>`;
+          document.getElementById("msgInput").value = "";
+        });
+
+        
+      }
+
+      function selectUser(name) {
+        selectedTarget = name;
+        alert("Chatting with " + name);
+        fetchMessages();
+      }
+
+      function fetchNodeList() {
+        // You'd create a Flask endpoint like `/nodes` returning all known node names
+        fetch('/nodes').then(res => res.json()).then(data => {
+          
+          const nodeList = document.getElementById("nodeList");
+          nodeList.innerHTML = "";
+          data.nodes.forEach(name => {
+            if (name !== currentUser) {
+              const el = document.createElement("div");
+              el.className = "node";
+              el.innerText = name;
+              el.onclick = () => selectUser(name);
+              nodeList.appendChild(el);
+            }
+          });
+        });
+      }
+
+      function fetchMessages() {
+        if (!currentUser || !selectedTarget) return;
+
+        fetch(`/inbox/${currentUser}?with=${selectedTarget}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => {
+            const chatBox = document.getElementById("chatBox");
+            chatBox.innerHTML = "";
+            data.messages.forEach(([sender, msg]) => {
+              const displayName = sender === currentUser ? "You" : sender;
+              chatBox.innerHTML += `<div><b>${displayName}:</b> ${msg}</div>`;
             });
-    }, 2000);
+          });
+      }
 
 
-    // You can also periodically call fetchNodeList() if needed
-    setInterval(fetchNodeList, 10000);
-  </script>
-</body>
-</html>
+      // You can also periodically call fetchNodeList() if needed
+      setInterval(fetchNodeList, 10000);
+      setInterval(fetchMessages, 2000);
+    </script>
+  </body>
+  </html>
