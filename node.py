@@ -23,7 +23,7 @@ class Node:
         # directory = [name] -> [ipaddress,port,pubkey]
         self.directory = {}
         self.running = True
-        self.inbox = []  # list of (sender name, message)
+        self.inbox = {}  # {name : [(sender, message)]}
         
     def connect(self, system:dict):
         """
@@ -67,7 +67,11 @@ class Node:
                     print(f"[{self.name}] Received message from {addr}: {message}")
                     message_split = message.split("|")
                     if message not in ["Error Code 9329", "Error Code 2746"]:
-                        self.inbox.append((message_split[0], message_split[1])) 
+                        sender, text = message.split("|", 1)
+                        # make sure inbox exists
+                        self.inbox.setdefault(sender, [])
+                        # store as ("Alice", "msg") if received from Alice
+                        self.inbox[sender].append((sender, text))
                     if message == "Error Code 9329":# decryption failed
                         continue
                     if message == "Error Code 2746":# node left
@@ -97,7 +101,8 @@ class Node:
             print("User not in directory")
             return
         msg = f"{self.name}|{msge}"
-        self.inbox.append((self.name, msge))
+        self.inbox.setdefault(name, [])
+        self.inbox[name].append(("You", msge))
         cipher_text = self.directory[name][2].encrypt(msg.encode(),padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None))
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((self.directory[name][0],self.directory[name][1]))
