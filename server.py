@@ -60,23 +60,27 @@ def leave():
     node = active_nodes[name]
     node.leave(system)
     system.remove_node(name)
-    del active_nodes[name]
+    del active_nodes[name]  
 
     return jsonify({'status': 'success', 'message': f'{name} has left'}), 200
 
 @app.route('/inbox/<name>', methods=['GET'])
-def inbox(name):
+def inbox(name,chat_with=None):
     if session.get('username') != name:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
-    for node in system.nodes_list:
-        if node and node.name == name:
-            for i in range(len(system.nodes_list)):
-                if system.nodes_list[i] and system.nodes_list[i].name == name:
-                    pos = i
-                    break
-            node = system.nodes_list[pos]
-            return jsonify({'messages': node.inbox}), 200
-    return jsonify({'status': 'error', 'message': 'Node not found'}), 400
+    chat_with = request.args.get("with")  # optional
+
+    node = active_nodes.get(name)
+    if not node:
+        return jsonify({'status': 'error', 'message': 'Node not found'}), 400
+
+    if chat_with:
+        # return only one conversation
+        messages = node.inbox.get(chat_with, [])
+        return jsonify({'messages': messages}), 200
+    else:
+        # return all chats
+        return jsonify({'inbox': node.inbox}), 200
 
 @app.route('/nodes', methods=['GET'])
 def nodes():
