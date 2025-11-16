@@ -2,6 +2,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
 import socket
 import threading
+import requests, time
 
 
 class Node:
@@ -70,7 +71,6 @@ class Node:
                         sender, text = message.split("|", 1)
                         # make sure inbox exists
                         self.inbox.setdefault(sender, [])
-                        # store as ("Alice", "msg") if received from Alice
                         self.inbox[sender].append((sender, text))
                     if message == "Error Code 9329":# decryption failed
                         continue
@@ -121,8 +121,14 @@ class Node:
                 sock.sendall(b'Error Code 2746')# to close circuit
         except:
             pass 
-    
-
-
         
-    
+    def start_heartbeat(self):
+        def beat():
+            while self.running:
+                try:
+                    requests.post("http://127.0.0.1:5000/heartbeat", json={"name": self.name})
+                except:
+                    pass
+                time.sleep(5)
+        threading.Thread(target=beat, daemon=True).start()   
+        
