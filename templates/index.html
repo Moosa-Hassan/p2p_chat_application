@@ -16,7 +16,6 @@
       height: 100vh;
     }
 
-    /* Sidebar (left pane) */
     .left-pane {
       width: 30%;
       background-color: #f0f0f0;
@@ -39,7 +38,15 @@
       border: 1px solid #ccc;
     }
 
-    /* Right pane (chat area) */
+    .node:hover {
+      background-color: #e8f4ff;
+    }
+
+    .node.active {
+      background-color: #d0e6ff;
+      border-color: #007bff;
+    }
+
     .right-pane {
       flex: 1;
       display: flex;
@@ -56,9 +63,32 @@
     }
 
     .connect-bar input {
-      padding: 5px;
+      padding: 8px;
       flex: 1;
-      min-width: 120px;
+      min-width: 200px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .connect-bar button {
+      padding: 8px 20px;
+      border-radius: 6px;
+      border: none;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .connect-bar button:hover {
+      background: #218838;
+    }
+
+    .status-text {
+      color: #666;
+      font-size: 13px;
+      margin-left: 10px;
+      max-width: 300px;
     }
 
     .chat-area {
@@ -68,7 +98,6 @@
       overflow-x: hidden;
       background-color: #fafafa;
       border-top: 1px solid #ccc;
-
       display: flex;
       flex-direction: column;
     }
@@ -78,14 +107,11 @@
       padding: 8px 12px;
       border-radius: 10px;
       margin-bottom: 8px;
-
       width: fit-content;
       max-width: 70%;
-
       word-break: break-word;
       white-space: pre-wrap;
       overflow-wrap: break-word;
-
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -127,7 +153,6 @@
       background: #0056b3;
     }
 
-    /* Toggle menu button (mobile only) */
     .menu-label {
       display: none;
       background-color: #007bff;
@@ -139,7 +164,6 @@
       user-select: none;
     }
 
-    /* Responsive design */
     @media (max-width: 650px) {
       body {
         flex-direction: column;
@@ -179,115 +203,162 @@
   </style>
 </head>
 <body>
-  <!-- Sidebar toggle (for mobile) -->
   <input type="checkbox" id="menu-toggle" hidden>
   <div class="left-pane">
     <h3>Connected Nodes</h3>
     <div id="nodeList"></div>
   </div>
 
-  <!-- Main chat interface -->
   <div class="right-pane">
     <div class="connect-bar">
-      <input id="nameInput" type="text" placeholder="Enter your name">
-      <input id="ipInput" type="text" placeholder="Enter IP (e.g., 127.0.0.1)">
-      <input id="portInput" type="number" placeholder="Port (e.g., 8001)">
-      <button onclick="join()">Join</button>
-
+      <input id="nameInput" type="text" placeholder="Enter your name" onkeypress="if(event.key==='Enter') join()">
+      <button onclick="join()">Join Network</button>
+      <span id="statusText" class="status-text"></span>
     </div>
 
-    <div class="chat-area" id="chatBox"></div>
+    <div class="chat-area" id="chatBox">
+      <p style="color: #888; text-align: center;">Select a node to start chatting</p>
+    </div>
 
     <div class="input-bar">
-      <input id="msgInput" type="text" placeholder="Type your message">
+      <input id="msgInput" type="text" placeholder="Type your message" onkeypress="if(event.key==='Enter') send()">
       <button onclick="send()">Send</button>
       <label class="menu-label" for="menu-toggle">☰</label>
     </div>
   </div>
 
-    <script>
-      let currentUser = "";
-      let selectedTarget = "";
+  <script>
+    let currentUser = "";
+    let selectedTarget = "";
 
-      function join() {
-        const name = document.getElementById("nameInput").value;
-        const ip = document.getElementById("ipInput").value;
-        const port = document.getElementById("portInput").value;
-        if (!name || !ip || !port) return alert("Fill all fields");
+    function join() {
+      const name = document.getElementById("nameInput").value.trim();
+      if (!name) return alert("Please enter your name");
 
-        currentUser = name;
+      currentUser = name;
+      document.getElementById("statusText").textContent = "Joining...";
 
-        fetch('/join', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ name, ip, port })
-        }).then(res => res.json()).then(data => {
-          alert(data.message);
-          fetchNodeList(); // optional future endpoint
-        });
-      }
+      fetch('/join', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name })
+      }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+          document.getElementById("statusText").textContent = `✓ Connected as ${name}`;
+          document.getElementById("statusText").style.color = "#28a745";
+          document.getElementById("nameInput").disabled = true;
+          fetchNodeList(); // Fetch immediately after joining
+        } else {
+          document.getElementById("statusText").textContent = "✗ " + data.message;
+          document.getElementById("statusText").style.color = "#dc3545";
+        }
+      }).catch(err => {
+        document.getElementById("statusText").textContent = "✗ Connection failed";
+        document.getElementById("statusText").style.color = "#dc3545";
+        console.error("Error joining:", err);
+      });
+    }
 
-      function send() {
-        const msg = document.getElementById("msgInput").value;
-        if (!selectedTarget) return alert("Select someone to message");
-        if (!msg) return;
+    function send() {
+      const msg = document.getElementById("msgInput").value;
+      if (!selectedTarget) return alert("Select someone to message");
+      if (!msg) return;
 
-        fetch('/send', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ sender: currentUser, receiver: selectedTarget, message: msg })
-        }).then(res => res.json()).then(data => {
-          const chatBox = document.getElementById("chatBox");
-          chatBox.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-          document.getElementById("msgInput").value = "";
-        });
+      fetch('/send', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ sender: currentUser, receiver: selectedTarget, message: msg })
+      }).then(res => res.json()).then(data => {
+        document.getElementById("msgInput").value = "";
+        fetchMessages(); // Refresh to show sent message
+      }).catch(err => {
+        alert("Error sending message: " + err);
+      });
+    }
 
+    function selectUser(name) {
+      selectedTarget = name;
+      
+      // Update UI to show active selection
+      document.querySelectorAll('.node').forEach(el => {
+        el.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      fetchMessages();
+    }
+
+    function fetchNodeList() {
+      fetch('/nodes').then(res => res.json()).then(data => {
+        const nodeList = document.getElementById("nodeList");
+        nodeList.innerHTML = "";
         
-      }
-
-      function selectUser(name) {
-        selectedTarget = name;
-        alert("Chatting with " + name);
-        fetchMessages();
-      }
-
-      function fetchNodeList() {
-        // You'd create a Flask endpoint like `/nodes` returning all known node names
-        fetch('/nodes').then(res => res.json()).then(data => {
-          
-          const nodeList = document.getElementById("nodeList");
-          nodeList.innerHTML = "";
-          data.nodes.forEach(name => {
-            if (name !== currentUser) {
-              const el = document.createElement("div");
-              el.className = "node";
-              el.innerText = name;
-              el.onclick = () => selectUser(name);
-              nodeList.appendChild(el);
+        if (data.nodes.length === 0 || (data.nodes.length === 1 && data.nodes[0] === currentUser)) {
+          nodeList.innerHTML = "<p style='color: #888;'>No other nodes connected</p>";
+          return;
+        }
+        
+        data.nodes.forEach(name => {
+          if (name !== currentUser) {
+            const el = document.createElement("div");
+            el.className = "node";
+            if (name === selectedTarget) {
+              el.classList.add('active');
             }
-          });
+            el.innerText = name;
+            el.onclick = () => selectUser(name);
+            nodeList.appendChild(el);
+          }
         });
-      }
+      }).catch(err => {
+        console.error("Error fetching nodes:", err);
+      });
+    }
 
-      function fetchMessages() {
-        if (!currentUser || !selectedTarget) return;
+    function fetchMessages() {
+      if (!currentUser || !selectedTarget) return;
 
-        fetch(`/inbox/${currentUser}?with=${selectedTarget}`, { credentials: 'include' })
-          .then(res => res.json())
-          .then(data => {
-            const chatBox = document.getElementById("chatBox");
-            chatBox.innerHTML = "";
-            data.messages.forEach(([sender, msg]) => {
-              const displayName = sender === currentUser ? "You" : sender;
-              chatBox.innerHTML += `<div><b>${displayName}:</b> ${msg}</div>`;
-            });
+      fetch(`/inbox/${currentUser}?with=${selectedTarget}`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          const chatBox = document.getElementById("chatBox");
+          chatBox.innerHTML = "";
+          
+          if (data.messages.length === 0) {
+            chatBox.innerHTML = "<p style='color: #888; text-align: center;'>No messages yet. Start the conversation!</p>";
+            return;
+          }
+          
+          data.messages.forEach(([sender, msg]) => {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "chat-message";
+            
+            if (sender === "You") {
+              msgDiv.classList.add("user");
+              msgDiv.innerHTML = `<b>You:</b> ${msg}`;
+            } else {
+              msgDiv.classList.add("other");
+              msgDiv.innerHTML = `<b>${sender}:</b> ${msg}`;
+            }
+            
+            chatBox.appendChild(msgDiv);
           });
-      }
+          
+          // Scroll to bottom
+          chatBox.scrollTop = chatBox.scrollHeight;
+        })
+        .catch(err => {
+          console.error("Error fetching messages:", err);
+        });
+    }
 
-
-      // You can also periodically call fetchNodeList() if needed
-      setInterval(fetchNodeList, 10000);
-      setInterval(fetchMessages, 2000);
-    </script>
-  </body>
-  </html>
+    // Fetch node list every 5 seconds
+    setInterval(fetchNodeList, 5000);
+    
+    // Fetch messages every 2 seconds if chatting
+    setInterval(() => {
+      if (selectedTarget) fetchMessages();
+    }, 2000);
+  </script>
+</body>
+</html>
