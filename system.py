@@ -21,8 +21,7 @@ class p2p_System:
         
     def release_port(self,port):
         """ Mark a port as free so it may be used"""
-        with self.lock:
-            self.used_ports.discard(port)
+        self.used_ports.discard(port)
         
     def get_pos(self):
         with self.lock:
@@ -37,19 +36,23 @@ class p2p_System:
         
     def cleanup(self):
         while True:
-            time.sleep(3)
+            time.sleep(10)
             with self.lock:
                 now = time.time()
-                to_remove = [name for name, ts in self.last_seen.items() if now - ts > 10]
+                to_remove = [name for name, ts in self.last_seen.items() if now - ts > 25]
             
             for name in to_remove:
+                print(f"Removeing {name}")
                 self.remove_node(name)
                 with self.lock:
                     self.last_seen.pop(name, None)
         
     def add_node(self, name: str, ip, port, node: Node = None):
         with self.lock:
-            self.nodes_list.append(node)
+            if node.position == len(self.nodes_list):
+                self.nodes_list.append(node)
+            else:
+                self.nodes_list[node.position] = node
             # Initialize heartbeat timestamp immediately
             self.last_seen[name] = time.time()
         self.broadcast(node.position)
@@ -64,13 +67,13 @@ class p2p_System:
             ip = self.nodes_list[pos].ip
             port = self.nodes_list[pos].port
             
-            for i in range(len(self.nodes_list)):
-                if self.nodes_list[i] and i != pos:
-                    self.nodes_list[i].update_directory(name, "J", pub_key, ip, port)
-                    o_name = self.nodes_list[i].name
-                    o_pub_key = self.nodes_list[i].public_key
-                    o_ip = self.nodes_list[i].ip
-                    o_port = self.nodes_list[i].port
+            for i, o_node in enumerate(self.nodes_list):
+                if o_node and i != pos:
+                    o_node.update_directory(name, "J", pub_key, ip, port)
+                    o_name = o_node.name
+                    o_pub_key = o_node.public_key
+                    o_ip = o_node.ip
+                    o_port = o_node.port
                     self.nodes_list[pos].update_directory(o_name, "J", o_pub_key, o_ip, o_port)
         
     def remove_node(self, name: str):
