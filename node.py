@@ -25,6 +25,7 @@ class Node:
         self.directory = {}
         self.running = True
         self.inbox = {}  # {name : [(sender, message)]}
+        self.server_soc = socket.socket()
         
     def connect(self, system:dict):
         """
@@ -47,9 +48,11 @@ class Node:
         """
         Returns the name of node corresponding to the address
         """
+        ip,port = addr
         for name, details in self.directory.items():
             print(f"Checking {name} against {addr[0]} with details {details[0]}")
-            if str(addr[0]) == str(details[0]):
+            n_ip,n_port = details
+            if ip==n_ip and port==n_port:
                 return name
         return None
         
@@ -57,28 +60,36 @@ class Node:
         def run_server():
             server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server.bind((ip, port))
+            server.settimeout(1)
             server.listen()
+            self.server_soc = server
             print(f"[{self.name}] Listening on {ip}:{port}")
 
             while self.running:
-                conn, addr = server.accept()
-                data = conn.recv(4096)
-                if data:
-                    message = self.recieve_message(data)
-                    print(f"[{self.name}] Received message from {addr}: {message}")
-                    message_split = message.split("|")
-                    if message not in ["Error Code 9329", "Error Code 2746"]:
-                        sender, text = message.split("|", 1)
-                        # make sure inbox exists
-                        self.inbox.setdefault(sender, [])
-                        self.inbox[sender].append((sender, text))
-                    if message == "Error Code 9329":# decryption failed
-                        continue
-                    if message == "Error Code 2746":# node left
-                        conn.close()
-                        break
-                    print(f"[{self.name}] Message from {message_split[0]}: {message_split[1]}")
-                conn.close()
+                try:
+                    conn, addr = server.accept()
+                except:
+                    continue
+                try: 
+                    data = conn.recv(4096)
+                    if data:
+                        message = self.recieve_message(data)
+                        print(f"[{self.name}] Received message from {addr}: {message}")
+                        message_split = message.split("|")
+                        if message not in ["Error Code 9329", "Error Code 2746"]:
+                            sender, text = message.split("|", 1)
+                            # make sure inbox exists
+                            self.inbox.setdefault(sender, [])
+                            self.inbox[sender].append((sender, text))
+                        if message == "Error Code 9329":# decryption failed
+                            continue
+                        if message == "Error Code 2746":# node left
+                            conn.close()
+                            break
+                        print(f"[{self.name}] Message from {message_split[0]}: {message_split[1]}")
+                finally:
+                    conn.close()
+            server.close()
 
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
@@ -119,16 +130,7 @@ class Node:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((self.ip, self.port))
                 sock.sendall(b'Error Code 2746')# to close circuit
+                self.server_soc.close()
         except:
-            pass 
-        
-    def start_heartbeat(self):
-        def beat():
-            while self.running:
-                try:
-                    requests.post("http://127.0.0.1:5000/heartbeat", json={"name": self.name})
-                except:
-                    pass
-                time.sleep(5)
-        threading.Thread(target=beat, daemon=True).start()   
+            pass  
         
