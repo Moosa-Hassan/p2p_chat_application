@@ -212,7 +212,8 @@
   <div class="right-pane">
     <div class="connect-bar">
       <input id="nameInput" type="text" placeholder="Enter your name" onkeypress="if(event.key==='Enter') join()">
-      <button onclick="join()">Join Network</button>
+      <button id="joinBtn" onclick="join()">Join Network</button>
+      <button id="leaveBtn" onclick="leave()" style="display:none; background:#dc3545;" >Leave</button>
       <span id="statusText" class="status-text"></span>
     </div>
 
@@ -247,6 +248,9 @@
           document.getElementById("statusText").textContent = `✓ Connected as ${name}`;
           document.getElementById("statusText").style.color = "#28a745";
           document.getElementById("nameInput").disabled = true;
+          document.getElementById("joinBtn").style.display = "none";
+          document.getElementById("leaveBtn").style.display = "inline-block";
+          startHeartbeat();
           fetchNodeList(); // Fetch immediately after joining
         } else {
           document.getElementById("statusText").textContent = "✗ " + data.message;
@@ -258,6 +262,37 @@
         console.error("Error joining:", err);
       });
     }
+    function leave() {
+        if (!currentUser) return;
+
+        fetch('/leave', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: currentUser })
+        })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message);
+
+          // Reset UI
+          currentUser = "";
+          selectedTarget = "";
+          document.getElementById("nameInput").disabled = false;
+          document.getElementById("statusText").textContent = "";
+          document.getElementById("chatBox").innerHTML =
+            "<p style='color: #888; text-align: center;'>Select a node to start chatting</p>";
+
+          // Toggle buttons
+          document.getElementById("joinBtn").style.display = "inline-block";
+          document.getElementById("leaveBtn").style.display = "none";
+
+          // Clear node list
+          document.getElementById("nodeList").innerHTML = "";
+        })
+        .catch(err => {
+          console.error("Error leaving:", err);
+        });
+      }
 
     function send() {
       const msg = document.getElementById("msgInput").value;
@@ -354,6 +389,27 @@
 
     // Fetch node list every 5 seconds
     setInterval(fetchNodeList, 5000);
+    // Send heartbeat every 5 seconds
+    function startHeartbeat() {
+      if (!currentUser) return;
+
+      setInterval(() => {
+        fetch('/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: currentUser })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status !== 'ok') {
+            console.warn("Heartbeat rejected for:", currentUser);
+          }
+        })
+        .catch(err => {
+          console.error("Heartbeat error:", err);
+        });
+      }, 5000);
+    }
     
     // Fetch messages every 2 seconds if chatting
     setInterval(() => {
