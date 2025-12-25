@@ -43,9 +43,7 @@ def join():
     node.listener(ip,port)
     system.add_node(name,ip,port,node)
     active_nodes[name] = node
-    
-    # start heartbeat
-    node.start_heartbeat()
+    system.heartbeat(name)
 
     return jsonify({'status': 'success', 'message': f'{name} joined on {ip}:{port}'}), 200
 
@@ -100,7 +98,11 @@ def inbox(name, chat_with=None):
 
 @app.route('/nodes', methods=['GET'])
 def nodes():
-    return jsonify({'nodes': list(active_nodes.keys())})
+    lst =[]
+    for name in system.nodes_list:
+        if name :
+            lst.append(name.name)
+    return jsonify({'nodes': lst})
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
